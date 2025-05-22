@@ -7,7 +7,8 @@
 
 using namespace std;
 
-const int MAX_ITEMS = 10; // Максимальное количество товара в ячейке
+const int MAX_ITEMS_PER_CELL = 10; // Максимальное количество товара в ячейке
+const int TOTAL_WAREHOUSE_CAPACITY = 50400; // Общая вместимость склада (50400 единиц)
 
 // Структура для хранения содержимого ячейки
 struct CellContent {
@@ -18,11 +19,14 @@ struct CellContent {
 // Основная структура хранения данных склада
 map<string, CellContent> warehouse; // Ключ - адрес ячейки (например "A0101")
 
+// Глобальная переменная для отслеживания общего количества товаров на складе
+int totalWarehouseItems = 0;
+
 /*
   Проверяет корректность адреса ячейки
   address - адрес в формате "ZRSSHH" (Зона, Стеллаж, Секция, Полка)
   true если адрес корректен, false в противном случае
- */
+*/
 bool isValidAddress(const string& address) {
     if (address.length() != 6) return false;
 
@@ -31,10 +35,10 @@ bool isValidAddress(const string& address) {
     char section = address[3];
     string shelf = address.substr(4, 5);
 
-    // Проверка зоны (A или B)
+    // Проверка зоны (A, B или C)
     if (zone != 'A' && zone != 'B' && zone != 'C') return false;
 
-    // Проверка стеллажа (01-06)
+    // Проверка стеллажа (01-14)
     try {
         int rack = stoi(rackStr);
         if (rack < 1 || rack > 14) return false;
@@ -43,7 +47,7 @@ bool isValidAddress(const string& address) {
         return false;
     }
 
-    // Проверка секции (0-3)
+    // Проверка секции (0-6)
     if (section < '0' || section > '6') return false;
 
     try {
@@ -62,7 +66,7 @@ bool isValidAddress(const string& address) {
   address - адрес ячейки
   item - наименование товара
   count - количество товара для добавления
- */
+*/
 void add(string address, string item, int count) {
     if (count <= 0) {
         cout << "Количество должно быть положительным." << endl;
@@ -74,16 +78,23 @@ void add(string address, string item, int count) {
         return;
     }
 
+    // Проверка общей вместимости склада
+    if (totalWarehouseItems + count > TOTAL_WAREHOUSE_CAPACITY) {
+        cout << "Нельзя добавить товар. Склад переполнен (максимум " << TOTAL_WAREHOUSE_CAPACITY << " единиц)." << endl;
+        return;
+    }
+
     CellContent& cell = warehouse[address];
 
-    if (cell.total + count > MAX_ITEMS) {
-        cout << "Нельзя добавить товар. Ячейка переполнена." << endl;
+    if (cell.total + count > MAX_ITEMS_PER_CELL) {
+        cout << "Нельзя добавить товар. Ячейка переполнена (максимум " << MAX_ITEMS_PER_CELL << " единиц)." << endl;
         return;
     }
 
     cell.items[item] += count;
     cell.total += count;
-    cout << "Товар '" << item << "' добавлен в ячейку " << address << "." << endl;
+    totalWarehouseItems += count;
+    cout << "Товар '" << item << "' добавлен в ячейку " << address << ". Всего на складе: " << totalWarehouseItems << "/" << TOTAL_WAREHOUSE_CAPACITY << endl;
 }
 
 /*
@@ -91,7 +102,7 @@ void add(string address, string item, int count) {
   address - адрес ячейки
   item - наименование товара
   count - количество товара для удаления
- */
+*/
 void remove(string address, string item, int count) {
     if (count <= 0) {
         cout << "Количество должно быть положительным." << endl;
@@ -117,37 +128,40 @@ void remove(string address, string item, int count) {
 
     cell.items[item] -= count;
     cell.total -= count;
+    totalWarehouseItems -= count;
 
     if (cell.items[item] == 0) {
         cell.items.erase(item);
     }
 
-    cout << "Товар '" << item << "' удален из ячейки " << address << "." << endl;
+    cout << "Товар '" << item << "' удален из ячейки " << address << ". Всего на складе: " << totalWarehouseItems << "/" << TOTAL_WAREHOUSE_CAPACITY << endl;
 }
 
-/**
- * Функция вывода статистики по складу
+/*
+  Функция вывода статистики по складу
  */
 void info() {
+    cout << "\n=== СТАТИСТИКА СКЛАДА ===" << endl;
+    cout << "Общая вместимость склада: " << TOTAL_WAREHOUSE_CAPACITY << " единиц" << endl;
+    cout << "Текущее количество товаров: " << totalWarehouseItems << " единиц" << endl;
+    cout << "Свободная емкость: " << (TOTAL_WAREHOUSE_CAPACITY - totalWarehouseItems) << " единиц" << endl;
+
     if (warehouse.empty()) {
-        cout << "Склад полностью пуст." << endl;
+        cout << "\nСклад полностью пуст." << endl;
         return;
     }
 
-    int totalItems = 0;
-    int zoneItems[3] = { 0 }; // 0 - зона A, 1 - зона B
-    int totalCells = 3 * 6 * 4 * 4; // Всего ячеек на складе
+    int zoneItems[3] = { 0 }; // 0 - зона A, 1 - зона B, 2 - зона C
+    int totalCells = 3 * 14 * 7 * 20; // Всего ячеек на складе (3 зоны × 14 стеллажей × 7 секций × 20 полок)
     int usedCells = 0;
 
     // Подсчет статистики
     for (const auto& entry : warehouse) {
-        totalItems += entry.second.total;
         usedCells++;
-
         if (entry.first[0] == 'A') {
             zoneItems[0] += entry.second.total;
         }
-        else if(entry.first[1] == 'B') {
+        else if (entry.first[0] == 'B') {
             zoneItems[1] += entry.second.total;
         }
         else {
@@ -156,22 +170,23 @@ void info() {
     }
 
     // Вывод общей статистики
-    float totalPercent = (static_cast<float>(totalItems) / (totalCells * MAX_ITEMS)) * 100;
-    cout << "Общая загруженность склада: " << fixed << setprecision(2) << totalPercent << "%" << endl;
+    float totalPercent = (static_cast<float>(totalWarehouseItems) / TOTAL_WAREHOUSE_CAPACITY) * 100;
+    cout << "\nОбщая загруженность склада: " << fixed << setprecision(2) << totalPercent << "%" << endl;
 
     // Статистика по зонам
-    float zoneAPercent = (static_cast<float>(zoneItems[0]) / (6 * 4 * 4 * MAX_ITEMS)) * 100;
-    float zoneBPercent = (static_cast<float>(zoneItems[1]) / (6 * 4 * 4 * MAX_ITEMS)) * 100;
-    float zoneCPercent = (static_cast<float>(zoneItems[2]) / (6 * 4 * 4 * MAX_ITEMS)) * 100;
-    cout << "Зона A: " << zoneAPercent << "%" << endl;
-    cout << "Зона B: " << zoneBPercent << "%" << endl;
-    cout << "Зона C: " << zoneCPercent << "%" << endl;
+    int zoneCapacity = TOTAL_WAREHOUSE_CAPACITY / 3; // Предполагаем равное распределение
+    float zoneAPercent = (static_cast<float>(zoneItems[0]) / zoneCapacity) * 100;
+    float zoneBPercent = (static_cast<float>(zoneItems[1]) / zoneCapacity) * 100;
+    float zoneCPercent = (static_cast<float>(zoneItems[2]) / zoneCapacity) * 100;
+    cout << "Зона A: " << zoneAPercent << "% (" << zoneItems[0] << "/" << zoneCapacity << ")" << endl;
+    cout << "Зона B: " << zoneBPercent << "% (" << zoneItems[1] << "/" << zoneCapacity << ")" << endl;
+    cout << "Зона C: " << zoneCPercent << "% (" << zoneItems[2] << "/" << zoneCapacity << ")" << endl;
 
     // Список занятых ячеек
-    cout << "\nЗанятые ячейки:" << endl;
+    cout << "\nЗанятые ячейки (" << usedCells << " из " << totalCells << "):" << endl;
     for (const auto& entry : warehouse) {
         if (entry.second.total > 0) {
-            cout << entry.first << ": " << entry.second.total << " единиц (";
+            cout << entry.first << ": " << entry.second.total << " ед. (";
             for (const auto& item : entry.second.items) {
                 cout << item.first << " - " << item.second << ", ";
             }
@@ -179,42 +194,8 @@ void info() {
         }
     }
 
-    // Список пустых ячеек
-    cout << "\nПустые ячейки:" << endl;
-    vector<string> emptyCells;
-
-    // Генерация всех возможных адресов без ostringstream
-
-    for (char zone : {'A', 'B', 'C'}) {
-        for (int rack = 1; rack <= 6; ++rack) {
-            for (char section = '0'; section <= '3'; ++section) {
-                for (int shelf = 0; shelf <= 20; ++shelf) {
-                    // Формируем адрес с учетом двухзначных номеров полок
-                    string address;
-                    address += zone;
-                    address += (rack < 10) ? "0" + to_string(rack) : to_string(rack);
-                    address += section;
-                    address += (shelf < 10) ? "0" + to_string(shelf) : to_string(shelf);
-
-                    if (warehouse.find(address) == warehouse.end() || warehouse[address].total == 0) {
-                        emptyCells.push_back(address);
-                    }
-                }
-            }
-        }
-    }
-
-    // Вывод пустых ячеек
-    cout << "\nПустые ячейки:" << endl;
-    const int itemsPerLine = 5; // Меньше, так как адреса теперь длиннее
-    for (size_t i = 0; i < emptyCells.size(); ++i) {
-        cout << emptyCells[i];
-        if (i != emptyCells.size() - 1) {
-            if ((i + 1) % itemsPerLine == 0) cout << endl;
-            else cout << ", ";
-        }
-    }
-    cout << endl;
+    // Список пустых ячеек (опционально, может быть очень большим)
+    cout << "\nПустых ячеек: " << (totalCells - usedCells) << endl;
 }
 
 int main() {
@@ -222,16 +203,18 @@ int main() {
     int count;
     setlocale(LC_ALL, "Russian");
     cout << "Система управления складом (версия с map)" << endl;
-    cout << "Формат адреса: ZRSSH, где:" << endl;
-    cout << "  Z - зона (A или B)" << endl;
-    cout << "  RR - номер стеллажа (01-06)" << endl;
-    cout << "  S - секция (0-3)" << endl;
-    cout << "  H - полка (0-3)" << endl;
-    cout << "Пример адреса: A0101 (Зона A, стеллаж 1, секция 0, полка 1)" << endl << endl;
+    cout << "Максимальная вместимость склада: " << TOTAL_WAREHOUSE_CAPACITY << " единиц" << endl;
+    cout << "Формат адреса: ZRRSSH, где:" << endl;
+    cout << "  Z - зона (A, B или C)" << endl;
+    cout << "  RR - номер стеллажа (01-14)" << endl;
+    cout << "  S - секция (0-6)" << endl;
+    cout << "  H - полка (01-20)" << endl;
+    cout << "Пример адреса: A010101 (Зона A, стеллаж 01, секция 0, полка 01)" << endl << endl;
 
     while (true) {
         cout << "\nВведите команду (ADD, REMOVE, INFO, EXIT): ";
         cin >> command;
+        transform(command.begin(), command.end(), command.begin(), ::toupper);
 
         if (command == "ADD") {
             cout << "Введите адрес ячейки: ";
