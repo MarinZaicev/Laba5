@@ -8,7 +8,7 @@
 using namespace std;
 
 const int MAX_ITEMS_PER_CELL = 10; // Максимальное количество товара в ячейке
-const int TOTAL_WAREHOUSE_CAPACITY = 50400; // Общая вместимость склада (50400 единиц)
+const int TOTAL_WAREHOUSE_CAPACITY = 50400; // Общая вместимость склада
 
 // Структура для хранения содержимого ячейки
 struct CellContent {
@@ -16,8 +16,8 @@ struct CellContent {
     int total = 0;          // Общее количество товаров в ячейке
 };
 
-// Основная структура хранения данных склада
-map<string, CellContent> warehouse; // Ключ - адрес ячейки (например "A0101")
+// структура хранения данных склада
+map<string, CellContent> warehouse; // Ключ - адрес ячейки
 
 // Глобальная переменная для отслеживания общего количества товаров на складе
 int totalWarehouseItems = 0;
@@ -25,7 +25,7 @@ int totalWarehouseItems = 0;
 /*
   Проверяет корректность адреса ячейки
   address - адрес в формате "ZRSSHH" (Зона, Стеллаж, Секция, Полка)
-  true если адрес корректен, false в противном случае
+  true если адрес корректен
 */
 bool isValidAddress(const string& address) {
     if (address.length() != 6) return false;
@@ -141,7 +141,7 @@ void remove(string address, string item, int count) {
   Функция вывода статистики по складу
  */
 void info() {
-    cout << "\n=== СТАТИСТИКА СКЛАДА ===" << endl;
+    cout << "=== СТАТИСТИКА СКЛАДА ===" << endl;
     cout << "Общая вместимость склада: " << TOTAL_WAREHOUSE_CAPACITY << " единиц" << endl;
     cout << "Текущее количество товаров: " << totalWarehouseItems << " единиц" << endl;
     cout << "Свободная емкость: " << (TOTAL_WAREHOUSE_CAPACITY - totalWarehouseItems) << " единиц" << endl;
@@ -171,7 +171,7 @@ void info() {
 
     // Вывод общей статистики
     float totalPercent = (static_cast<float>(totalWarehouseItems) / TOTAL_WAREHOUSE_CAPACITY) * 100;
-    cout << "\nОбщая загруженность склада: " << fixed << setprecision(2) << totalPercent << "%" << endl;
+    cout << "Общая загруженность склада: " << fixed << setprecision(2) << totalPercent << "%" << endl;
 
     // Статистика по зонам
     int zoneCapacity = TOTAL_WAREHOUSE_CAPACITY / 3; // Предполагаем равное распределение
@@ -183,7 +183,7 @@ void info() {
     cout << "Зона C: " << zoneCPercent << "% (" << zoneItems[2] << "/" << zoneCapacity << ")" << endl;
 
     // Список занятых ячеек
-    cout << "\nЗанятые ячейки (" << usedCells << " из " << totalCells << "):" << endl;
+    cout << "Занятые ячейки (" << usedCells << " из " << totalCells << "):" << endl;
     for (const auto& entry : warehouse) {
         if (entry.second.total > 0) {
             cout << entry.first << ": " << entry.second.total << " ед. (";
@@ -194,8 +194,8 @@ void info() {
         }
     }
 
-    // Список пустых ячеек (опционально, может быть очень большим)
-    cout << "\nПустых ячеек: " << (totalCells - usedCells) << endl;
+    // Список пустых ячеек
+    cout << "Пустых ячеек: " << (totalCells - usedCells) << endl;
 }
 
 int main() {
@@ -214,7 +214,6 @@ int main() {
     while (true) {
         cout << "\nВведите команду (ADD, REMOVE, INFO, EXIT): ";
         cin >> command;
-        transform(command.begin(), command.end(), command.begin(), ::toupper);
 
         if (command == "ADD") {
             cout << "Введите адрес ячейки: ";
